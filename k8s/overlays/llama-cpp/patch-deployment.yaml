@@ -1,0 +1,16 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gemma-inference
+spec:
+  template:
+    spec:
+      containers:
+        - name: gemma
+          resources:
+            requests:
+              cpu: "8"
+              memory: 24Gi
+            limits:
+              cpu: "16"
+              memory: 48Gi

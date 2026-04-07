@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gemma-runtime-config
+data:
+  MODEL_RUNTIME: ollama
+  MODEL_ALIAS: gemma-4-ollama
+  MODEL_URL: ""
+  HF_MODEL_ID: ""
+  OLLAMA_MODEL: gemma4:latest

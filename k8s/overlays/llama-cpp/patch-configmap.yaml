@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gemma-runtime-config
+data:
+  MODEL_RUNTIME: llama.cpp
+  MODEL_ALIAS: gemma-4-cpu
+  MODEL_PATH: /models/gemma-4.gguf
+  MODEL_URL: https://your-model-host.example.com/gemma-4-q4.gguf
+  HF_MODEL_ID: ""
+  OLLAMA_MODEL: ""
+  CONTEXT_SIZE: "8192"
+  BATCH_SIZE: "256"
+  LLAMA_THREADS: "8"

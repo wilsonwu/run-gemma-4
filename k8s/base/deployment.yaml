@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gemma-inference
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gemma-inference
+  template:
+    metadata:
+      labels:
+        app: gemma-inference
+    spec:
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: OnRootMismatch
+      initContainers:
+        - name: prepare-model
+          image: ghcr.io/your-org/gemma-4-cpu:0.1.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - /usr/local/bin/prepare-model.sh
+          envFrom:
+            - configMapRef:
+                name: gemma-runtime-config
+            - secretRef:
+                name: model-access
+                optional: true
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      containers:
+        - name: gemma
+          image: ghcr.io/your-org/gemma-4-cpu:0.1.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          envFrom:
+            - configMapRef:
+                name: gemma-runtime-config
+            - secretRef:
+                name: model-access
+                optional: true
+          resources:
+            requests:
+              cpu: "4"
+              memory: 16Gi
+            limits:
+              cpu: "8"
+              memory: 32Gi
+          startupProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            failureThreshold: 90
+          readinessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          livenessProbe:
+            tcpSocket:
+              port: http
+            periodSeconds: 20
+            timeoutSeconds: 2
+            failureThreshold: 3
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+            - name: model-cache
+              mountPath: /models
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: model-cache
+          persistentVolumeClaim:
+            claimName: gemma-model-cache
+        - name: tmp
+          emptyDir: {}
