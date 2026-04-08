@@ -5,6 +5,20 @@ log() {
   echo "[entrypoint] $*"
 }
 
+normalize_proxy_env() {
+  if [[ -n "${HTTP_PROXY:-}" && -z "${http_proxy:-}" ]]; then
+    export http_proxy="${HTTP_PROXY}"
+  fi
+
+  if [[ -n "${HTTPS_PROXY:-}" && -z "${https_proxy:-}" ]]; then
+    export https_proxy="${HTTPS_PROXY}"
+  fi
+
+  if [[ -n "${NO_PROXY:-}" && -z "${no_proxy:-}" ]]; then
+    export no_proxy="${NO_PROXY}"
+  fi
+}
+
 resolve_runtime() {
   local requested="${MODEL_RUNTIME:-auto}"
   local model_path="${MODEL_PATH:-}"
@@ -56,6 +70,11 @@ start_llama() {
 start_transformers() {
   local service_port="${SERVICE_PORT:-8080}"
 
+  if ! command -v uvicorn >/dev/null 2>&1; then
+    log "transformers runtime is not installed in this image, build with INSTALL_TRANSFORMERS=1"
+    exit 1
+  fi
+
   if [[ -z "${MODEL_PATH:-}" && -z "${HF_MODEL_ID:-}" ]]; then
     log "MODEL_PATH or HF_MODEL_ID is required for transformers runtime"
     exit 1
@@ -68,6 +87,11 @@ start_transformers() {
 start_ollama() {
   local service_port="${SERVICE_PORT:-8080}"
 
+  if ! command -v ollama >/dev/null 2>&1; then
+    log "ollama runtime is not installed in this image, build with INSTALL_OLLAMA=1"
+    exit 1
+  fi
+
   export OLLAMA_HOST="0.0.0.0:${service_port}"
   export OLLAMA_MODELS="${OLLAMA_MODELS:-/models/ollama}"
 
@@ -77,6 +101,8 @@ start_ollama() {
 
 main() {
   local runtime
+
+  normalize_proxy_env
   runtime="$(resolve_runtime)"
 
   case "$runtime" in

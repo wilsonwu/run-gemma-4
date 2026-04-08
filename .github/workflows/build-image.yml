@@ -1,0 +1,181 @@
+name: build-image
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  workflow_dispatch:
+    inputs:
+      http_proxy:
+        description: Optional build HTTP proxy
+        required: false
+        default: ''
+        type: string
+      https_proxy:
+        description: Optional build HTTPS proxy
+        required: false
+        default: ''
+        type: string
+      no_proxy:
+        description: Optional build NO_PROXY list
+        required: false
+        default: ''
+        type: string
+      pip_index_url:
+        description: Python package index URL
+        required: false
+        default: https://pypi.org/simple
+        type: string
+      pip_extra_index_url:
+        description: Optional extra Python package index URL
+        required: false
+        default: ''
+        type: string
+      torch_index_url:
+        description: PyTorch wheel index URL
+        required: false
+        default: https://download.pytorch.org/whl/cpu
+        type: string
+      torch_version:
+        description: PyTorch version to install when transformers is enabled
+        required: false
+        default: 2.6.0+cpu
+        type: string
+      platforms:
+        description: docker buildx platforms
+        required: false
+        default: linux/amd64
+        type: string
+      install_transformers:
+        description: Build the image with the transformers runtime installed
+        required: false
+        default: false
+        type: boolean
+      install_ollama:
+        description: Build the image with the ollama runtime installed
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_REPO: ghcr.io/${{ github.repository }}
+  DEFAULT_HTTP_PROXY: ''
+  DEFAULT_HTTPS_PROXY: ''
+  DEFAULT_NO_PROXY: ''
+  DEFAULT_PIP_INDEX_URL: https://pypi.org/simple
+  DEFAULT_PIP_EXTRA_INDEX_URL: ''
+  DEFAULT_TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
+  DEFAULT_TORCH_VERSION: 2.6.0+cpu
+  DEFAULT_PLATFORMS: linux/amd64
+  DEFAULT_INSTALL_TRANSFORMERS: '0'
+  DEFAULT_INSTALL_OLLAMA: '0'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Resolve build settings
+        id: vars
+        shell: bash
+        env:
+          INPUT_HTTP_PROXY: ${{ github.event.inputs.http_proxy }}
+          INPUT_HTTPS_PROXY: ${{ github.event.inputs.https_proxy }}
+          INPUT_NO_PROXY: ${{ github.event.inputs.no_proxy }}
+          INPUT_PIP_INDEX_URL: ${{ github.event.inputs.pip_index_url }}
+          INPUT_PIP_EXTRA_INDEX_URL: ${{ github.event.inputs.pip_extra_index_url }}
+          INPUT_TORCH_INDEX_URL: ${{ github.event.inputs.torch_index_url }}
+          INPUT_TORCH_VERSION: ${{ github.event.inputs.torch_version }}
+          INPUT_PLATFORMS: ${{ github.event.inputs.platforms }}
+          INPUT_INSTALL_TRANSFORMERS: ${{ github.event.inputs.install_transformers }}
+          INPUT_INSTALL_OLLAMA: ${{ github.event.inputs.install_ollama }}
+          GITHUB_REF_TYPE_VALUE: ${{ github.ref_type }}
+          GITHUB_REF_NAME_VALUE: ${{ github.ref_name }}
+          GITHUB_SHA_VALUE: ${{ github.sha }}
+        run: |
+          choose() {
+            local preferred="$1"
+            local fallback="$2"
+
+            if [[ -n "$preferred" ]]; then
+              printf '%s' "$preferred"
+            else
+              printf '%s' "$fallback"
+            fi
+          }
+
+          image_version="sha-${GITHUB_SHA_VALUE::7}"
+          if [[ "${GITHUB_REF_TYPE_VALUE}" == "tag" ]]; then
+            image_version="${GITHUB_REF_NAME_VALUE}"
+          fi
+
+          echo "http_proxy=$(choose "$INPUT_HTTP_PROXY" "$DEFAULT_HTTP_PROXY")" >> "$GITHUB_OUTPUT"
+          echo "https_proxy=$(choose "$INPUT_HTTPS_PROXY" "$DEFAULT_HTTPS_PROXY")" >> "$GITHUB_OUTPUT"
+          echo "no_proxy=$(choose "$INPUT_NO_PROXY" "$DEFAULT_NO_PROXY")" >> "$GITHUB_OUTPUT"
+          echo "pip_index_url=$(choose "$INPUT_PIP_INDEX_URL" "$DEFAULT_PIP_INDEX_URL")" >> "$GITHUB_OUTPUT"
+          echo "pip_extra_index_url=$(choose "$INPUT_PIP_EXTRA_INDEX_URL" "$DEFAULT_PIP_EXTRA_INDEX_URL")" >> "$GITHUB_OUTPUT"
+          echo "torch_index_url=$(choose "$INPUT_TORCH_INDEX_URL" "$DEFAULT_TORCH_INDEX_URL")" >> "$GITHUB_OUTPUT"
+          echo "torch_version=$(choose "$INPUT_TORCH_VERSION" "$DEFAULT_TORCH_VERSION")" >> "$GITHUB_OUTPUT"
+          echo "platforms=$(choose "$INPUT_PLATFORMS" "$DEFAULT_PLATFORMS")" >> "$GITHUB_OUTPUT"
+          echo "install_transformers=$(choose "$INPUT_INSTALL_TRANSFORMERS" "$DEFAULT_INSTALL_TRANSFORMERS")" >> "$GITHUB_OUTPUT"
+          echo "install_ollama=$(choose "$INPUT_INSTALL_OLLAMA" "$DEFAULT_INSTALL_OLLAMA")" >> "$GITHUB_OUTPUT"
+          echo "image_version=${image_version}" >> "$GITHUB_OUTPUT"
+          echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_REPO }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=sha,prefix=sha-,enable=${{ github.ref == 'refs/heads/main' }}
+            type=ref,event=tag
+
+      - name: Build and push image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: ${{ steps.vars.outputs.platforms }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            REPO_URL=https://github.com/${{ github.repository }}
+            VCS_REF=${{ github.sha }}
+            BUILD_DATE=${{ steps.vars.outputs.build_date }}
+            IMAGE_VERSION=${{ steps.vars.outputs.image_version }}
+            INSTALL_TRANSFORMERS=${{ steps.vars.outputs.install_transformers }}
+            INSTALL_OLLAMA=${{ steps.vars.outputs.install_ollama }}
+            PIP_INDEX_URL=${{ steps.vars.outputs.pip_index_url }}
+            PIP_EXTRA_INDEX_URL=${{ steps.vars.outputs.pip_extra_index_url }}
+            TORCH_INDEX_URL=${{ steps.vars.outputs.torch_index_url }}
+            TORCH_VERSION=${{ steps.vars.outputs.torch_version }}
+            HTTP_PROXY=${{ steps.vars.outputs.http_proxy }}
+            HTTPS_PROXY=${{ steps.vars.outputs.https_proxy }}
+            NO_PROXY=${{ steps.vars.outputs.no_proxy }}
+            http_proxy=${{ steps.vars.outputs.http_proxy }}
+            https_proxy=${{ steps.vars.outputs.https_proxy }}
+            no_proxy=${{ steps.vars.outputs.no_proxy }}

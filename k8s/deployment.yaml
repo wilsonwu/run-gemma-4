@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: gemma-inference
+  namespace: gemma-cpu
 spec:
   replicas: 1
   selector:
@@ -15,10 +16,13 @@ spec:
       securityContext:
         fsGroup: 10001
         fsGroupChangePolicy: OnRootMismatch
+      # Uncomment when the GHCR package is private.
+      # imagePullSecrets:
+      #   - name: ghcr-creds
       initContainers:
         - name: prepare-model
-          image: ghcr.io/your-org/gemma-4-cpu:0.1.0
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/wilsonwu/run-gemma-4:latest
+          imagePullPolicy: Always
           command:
             - /usr/local/bin/prepare-model.sh
           envFrom:
@@ -39,8 +43,8 @@ spec:
               mountPath: /tmp
       containers:
         - name: gemma
-          image: ghcr.io/your-org/gemma-4-cpu:0.1.0
-          imagePullPolicy: IfNotPresent
+          image: ghcr.io/wilsonwu/run-gemma-4:latest
+          imagePullPolicy: Always
           ports:
             - name: http
               containerPort: 8080

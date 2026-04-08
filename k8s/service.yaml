@@ -2,6 +2,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: gemma-inference
+  namespace: gemma-cpu
 spec:
   selector:
     app: gemma-inference

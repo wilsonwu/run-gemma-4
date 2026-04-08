@@ -1,5 +1,17 @@
 .git
 .gitignore
+.github
+**/.DS_Store
+**/__pycache__
+**/.pytest_cache
+k8s
+LICENSE
+README.md
+README.zh-CN.md
+compose.yaml
+.env.example
+.git
+.gitignore
 .vscode
 __pycache__/
 *.pyc
