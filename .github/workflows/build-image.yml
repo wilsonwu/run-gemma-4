@@ -26,7 +26,7 @@ on:
       platforms:
         description: docker buildx platforms
         required: false
-        default: linux/amd64
+        default: linux/amd64,linux/arm64
         type: string
 
 permissions:
@@ -38,7 +38,7 @@ env:
   DEFAULT_HTTP_PROXY: ''
   DEFAULT_HTTPS_PROXY: ''
   DEFAULT_NO_PROXY: ''
-  DEFAULT_PLATFORMS: linux/amd64
+  DEFAULT_PLATFORMS: linux/amd64,linux/arm64
 
 jobs:
   build:
@@ -48,6 +48,9 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -105,6 +108,7 @@ jobs:
             type=ref,event=tag
 
       - name: Build and push image
+        id: push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -126,3 +130,35 @@ jobs:
             http_proxy=${{ steps.vars.outputs.http_proxy }}
             https_proxy=${{ steps.vars.outputs.https_proxy }}
             no_proxy=${{ steps.vars.outputs.no_proxy }}
+
+      - name: Write publish summary
+        if: success()
+        shell: bash
+        env:
+          OWNER_TYPE: ${{ github.event.repository.owner.type }}
+          OWNER_NAME: ${{ github.repository_owner }}
+          PACKAGE_NAME: ${{ github.event.repository.name }}
+          IMAGE_REPO_VALUE: ${{ env.IMAGE_REPO }}
+          PUBLISHED_TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          if [[ "${OWNER_TYPE}" == "Organization" ]]; then
+            package_url="https://github.com/orgs/${OWNER_NAME}/packages/container/package/${PACKAGE_NAME}"
+          else
+            package_url="https://github.com/users/${OWNER_NAME}/packages/container/package/${PACKAGE_NAME}"
+          fi
+
+          {
+            echo "## Published image"
+            echo
+            echo "- Package: ${IMAGE_REPO_VALUE}"
+            echo "- GitHub Packages: ${package_url}"
+            echo "- Platforms: ${{ steps.vars.outputs.platforms }}"
+            echo "- Digest: ${{ steps.push.outputs.digest }}"
+            echo
+            echo "### Published tags"
+            while IFS= read -r tag; do
+              if [[ -n "${tag}" ]]; then
+                echo "- ${tag}"
+              fi
+            done <<< "${PUBLISHED_TAGS}"
+          } >> "$GITHUB_STEP_SUMMARY"

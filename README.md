@@ -6,6 +6,12 @@ This repository packages one practical Gemma 4 inference path that users can sta
 
 The default experience is CPU-first and uses `llama.cpp + GGUF`, because that is the most realistic way to offer a one-command inference setup across laptops, Docker hosts, and Kubernetes clusters.
 
+## Preview
+
+Example response from the default local chat UI:
+
+![Example inference response in the English UI](screenshot-en.png)
+
 ## What Users Get
 
 - A published image on GHCR.
@@ -162,6 +168,13 @@ Publishing rules:
 - Push to `main`: publish `ghcr.io/wilsonwu/run-gemma-4:sha-<short-sha>`
 - Push a Git tag such as `v0.2.0`: publish `ghcr.io/wilsonwu/run-gemma-4:v0.2.0`
 
+Default published platforms:
+
+- `linux/amd64`
+- `linux/arm64`
+
+After a successful push, the image is already stored in GitHub Packages because GHCR is GitHub Packages for container images. The workflow also writes the exact published tags into the GitHub Actions job summary, so you can quickly see which tag is the newest one from that run.
+
 Optional `workflow_dispatch` parameters:
 
 - `http_proxy`
@@ -170,6 +183,8 @@ Optional `workflow_dispatch` parameters:
 - `platforms`
 
 The workflow keeps editable defaults near the top of [.github/workflows/build-image.yml](.github/workflows/build-image.yml), so automatic `main` and tag builds stay simple while proxy and platform overrides remain available.
+
+The default multi-arch build means Docker will normally pull the correct image variant automatically on Apple Silicon, ARM servers, and x86_64 hosts. The local Compose file no longer forces `linux/amd64` by default for that reason.
 
 If the `Build and push image` step fails with a GHCR `403 Forbidden` even though the login step succeeded, that usually means authentication worked but the current token is not allowed to write to the existing package. This often happens when the package was first created by a local PAT push instead of by this repository's Actions workflow.
 

@@ -9,6 +9,12 @@
 
 默认路径是 CPU 优先的 `llama.cpp + GGUF`，因为这是在笔记本、Docker 主机和 Kubernetes 集群之间最容易统一、也最容易真正跑起来的方案。
 
+## 效果预览
+
+下面是默认本地聊天界面的中文响应示例：
+
+![中文界面的推理响应示例](screenshot-zh.png)
+
 ## 用户最终得到什么
 
 - 一份已经发布到 GHCR 的镜像
@@ -165,6 +171,13 @@ curl http://127.0.0.1:8080/completion \
 - 提交到 `main`：同时发布 `ghcr.io/wilsonwu/run-gemma-4:sha-<short-sha>`
 - 打 Git Tag，例如 `v0.2.0`：发布 `ghcr.io/wilsonwu/run-gemma-4:v0.2.0`
 
+默认发布平台：
+
+- `linux/amd64`
+- `linux/arm64`
+
+只要 push 成功，镜像本身就已经进入 GitHub Packages，因为 GHCR 本身就是 GitHub 的容器包服务。现在工作流还会把本次实际发布的 tag 列表写到 GitHub Actions 的 job summary 里，这样你可以直接看到这次最新发布了哪些 tag。
+
 工作流在 `workflow_dispatch` 下支持的可选参数：
 
 - `http_proxy`
@@ -173,6 +186,8 @@ curl http://127.0.0.1:8080/completion \
 - `platforms`
 
 另外，这些参数在 [.github/workflows/build-image.yml](.github/workflows/build-image.yml) 顶部也保留了可编辑默认值。这样 `main` / tag 的自动构建保持简单，同时又保留了代理和目标平台的可配置能力。
+
+默认多架构发布后，Docker 在 Apple Silicon、ARM 服务器和 x86_64 主机上通常都会自动拉取匹配的镜像变体。所以本地 Compose 现在也不再默认强制指定 `linux/amd64`。
 
 如果 `Build and push image` 这一步在登录成功后仍然报 GHCR `403 Forbidden`，通常说明“认证成功了，但当前 token 没有写入这个已有 package 的权限”。这在镜像最初是通过本地 PAT 手工 push 创建、而不是由当前仓库的 GitHub Actions 首次创建时很常见。
 
