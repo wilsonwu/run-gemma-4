@@ -28,9 +28,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: gemma-runtime-config
-            - secretRef:
-                name: model-access
-                optional: true
           securityContext:
             allowPrivilegeEscalation: false
             runAsNonRoot: true
@@ -51,9 +48,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: gemma-runtime-config
-            - secretRef:
-                name: model-access
-                optional: true
           resources:
             requests:
               cpu: "4"

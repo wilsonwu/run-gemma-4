@@ -23,41 +23,11 @@ on:
         required: false
         default: ''
         type: string
-      pip_index_url:
-        description: Python package index URL
-        required: false
-        default: https://pypi.org/simple
-        type: string
-      pip_extra_index_url:
-        description: Optional extra Python package index URL
-        required: false
-        default: ''
-        type: string
-      torch_index_url:
-        description: PyTorch wheel index URL
-        required: false
-        default: https://download.pytorch.org/whl/cpu
-        type: string
-      torch_version:
-        description: PyTorch version to install when transformers is enabled
-        required: false
-        default: 2.6.0+cpu
-        type: string
       platforms:
         description: docker buildx platforms
         required: false
         default: linux/amd64
         type: string
-      install_transformers:
-        description: Build the image with the transformers runtime installed
-        required: false
-        default: false
-        type: boolean
-      install_ollama:
-        description: Build the image with the ollama runtime installed
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   contents: read
@@ -68,17 +38,12 @@ env:
   DEFAULT_HTTP_PROXY: ''
   DEFAULT_HTTPS_PROXY: ''
   DEFAULT_NO_PROXY: ''
-  DEFAULT_PIP_INDEX_URL: https://pypi.org/simple
-  DEFAULT_PIP_EXTRA_INDEX_URL: ''
-  DEFAULT_TORCH_INDEX_URL: https://download.pytorch.org/whl/cpu
-  DEFAULT_TORCH_VERSION: 2.6.0+cpu
   DEFAULT_PLATFORMS: linux/amd64
-  DEFAULT_INSTALL_TRANSFORMERS: '0'
-  DEFAULT_INSTALL_OLLAMA: '0'
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    environment: run-gemma-4
 
     steps:
       - name: Checkout repository
@@ -94,13 +59,7 @@ jobs:
           INPUT_HTTP_PROXY: ${{ github.event.inputs.http_proxy }}
           INPUT_HTTPS_PROXY: ${{ github.event.inputs.https_proxy }}
           INPUT_NO_PROXY: ${{ github.event.inputs.no_proxy }}
-          INPUT_PIP_INDEX_URL: ${{ github.event.inputs.pip_index_url }}
-          INPUT_PIP_EXTRA_INDEX_URL: ${{ github.event.inputs.pip_extra_index_url }}
-          INPUT_TORCH_INDEX_URL: ${{ github.event.inputs.torch_index_url }}
-          INPUT_TORCH_VERSION: ${{ github.event.inputs.torch_version }}
           INPUT_PLATFORMS: ${{ github.event.inputs.platforms }}
-          INPUT_INSTALL_TRANSFORMERS: ${{ github.event.inputs.install_transformers }}
-          INPUT_INSTALL_OLLAMA: ${{ github.event.inputs.install_ollama }}
           GITHUB_REF_TYPE_VALUE: ${{ github.ref_type }}
           GITHUB_REF_NAME_VALUE: ${{ github.ref_name }}
           GITHUB_SHA_VALUE: ${{ github.sha }}
@@ -124,13 +83,7 @@ jobs:
           echo "http_proxy=$(choose "$INPUT_HTTP_PROXY" "$DEFAULT_HTTP_PROXY")" >> "$GITHUB_OUTPUT"
           echo "https_proxy=$(choose "$INPUT_HTTPS_PROXY" "$DEFAULT_HTTPS_PROXY")" >> "$GITHUB_OUTPUT"
           echo "no_proxy=$(choose "$INPUT_NO_PROXY" "$DEFAULT_NO_PROXY")" >> "$GITHUB_OUTPUT"
-          echo "pip_index_url=$(choose "$INPUT_PIP_INDEX_URL" "$DEFAULT_PIP_INDEX_URL")" >> "$GITHUB_OUTPUT"
-          echo "pip_extra_index_url=$(choose "$INPUT_PIP_EXTRA_INDEX_URL" "$DEFAULT_PIP_EXTRA_INDEX_URL")" >> "$GITHUB_OUTPUT"
-          echo "torch_index_url=$(choose "$INPUT_TORCH_INDEX_URL" "$DEFAULT_TORCH_INDEX_URL")" >> "$GITHUB_OUTPUT"
-          echo "torch_version=$(choose "$INPUT_TORCH_VERSION" "$DEFAULT_TORCH_VERSION")" >> "$GITHUB_OUTPUT"
           echo "platforms=$(choose "$INPUT_PLATFORMS" "$DEFAULT_PLATFORMS")" >> "$GITHUB_OUTPUT"
-          echo "install_transformers=$(choose "$INPUT_INSTALL_TRANSFORMERS" "$DEFAULT_INSTALL_TRANSFORMERS")" >> "$GITHUB_OUTPUT"
-          echo "install_ollama=$(choose "$INPUT_INSTALL_OLLAMA" "$DEFAULT_INSTALL_OLLAMA")" >> "$GITHUB_OUTPUT"
           echo "image_version=${image_version}" >> "$GITHUB_OUTPUT"
           echo "build_date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
@@ -138,8 +91,8 @@ jobs:
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{ secrets[format('{0}_{1}', 'GHCR', 'TOKEN')] != '' && github.repository_owner || github.actor }}
+          password: ${{ secrets[format('{0}_{1}', 'GHCR', 'TOKEN')] != '' && secrets[format('{0}_{1}', 'GHCR', 'TOKEN')] || secrets.GITHUB_TOKEN }}
 
       - name: Compute image tags
         id: meta
@@ -167,12 +120,6 @@ jobs:
             VCS_REF=${{ github.sha }}
             BUILD_DATE=${{ steps.vars.outputs.build_date }}
             IMAGE_VERSION=${{ steps.vars.outputs.image_version }}
-            INSTALL_TRANSFORMERS=${{ steps.vars.outputs.install_transformers }}
-            INSTALL_OLLAMA=${{ steps.vars.outputs.install_ollama }}
-            PIP_INDEX_URL=${{ steps.vars.outputs.pip_index_url }}
-            PIP_EXTRA_INDEX_URL=${{ steps.vars.outputs.pip_extra_index_url }}
-            TORCH_INDEX_URL=${{ steps.vars.outputs.torch_index_url }}
-            TORCH_VERSION=${{ steps.vars.outputs.torch_version }}
             HTTP_PROXY=${{ steps.vars.outputs.http_proxy }}
             HTTPS_PROXY=${{ steps.vars.outputs.https_proxy }}
             NO_PROXY=${{ steps.vars.outputs.no_proxy }}

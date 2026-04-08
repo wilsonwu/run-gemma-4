@@ -56,12 +56,6 @@ BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 VCS_REF="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
 GHCR_USERNAME="${GHCR_USERNAME:-${REPO_PATH%%/*}}"
 BUILDER_NAME="${BUILDX_BUILDER:-}"
-PIP_INDEX_URL_VALUE="${PIP_INDEX_URL:-https://pypi.org/simple}"
-PIP_EXTRA_INDEX_URL_VALUE="${PIP_EXTRA_INDEX_URL:-}"
-INSTALL_OLLAMA_VALUE="${INSTALL_OLLAMA:-0}"
-INSTALL_TRANSFORMERS_VALUE="${INSTALL_TRANSFORMERS:-0}"
-TORCH_INDEX_URL_VALUE="${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}"
-TORCH_VERSION_VALUE="${TORCH_VERSION:-2.6.0+cpu}"
 
 if [[ -n "${GHCR_TOKEN:-}" ]]; then
   log "logging in to ghcr.io as ${GHCR_USERNAME}"
@@ -76,17 +70,8 @@ BUILD_ARGS=(
   --build-arg "VCS_REF=${VCS_REF}"
   --build-arg "BUILD_DATE=${BUILD_DATE}"
   --build-arg "IMAGE_VERSION=${IMAGE_VERSION}"
-  --build-arg "INSTALL_OLLAMA=${INSTALL_OLLAMA_VALUE}"
-  --build-arg "INSTALL_TRANSFORMERS=${INSTALL_TRANSFORMERS_VALUE}"
-  --build-arg "PIP_INDEX_URL=${PIP_INDEX_URL_VALUE}"
-  --build-arg "TORCH_INDEX_URL=${TORCH_INDEX_URL_VALUE}"
-  --build-arg "TORCH_VERSION=${TORCH_VERSION_VALUE}"
   -t "${IMAGE_REPO}:${IMAGE_TAG}"
 )
-
-if [[ -n "${PIP_EXTRA_INDEX_URL_VALUE}" ]]; then
-  BUILD_ARGS+=( --build-arg "PIP_EXTRA_INDEX_URL=${PIP_EXTRA_INDEX_URL_VALUE}" )
-fi
 
 if [[ -n "${HTTP_PROXY:-}" ]]; then
   BUILD_ARGS+=( --build-arg "HTTP_PROXY=${HTTP_PROXY}" --build-arg "http_proxy=${HTTP_PROXY}" )
@@ -109,12 +94,6 @@ if [[ "${PUBLISH_LATEST}" == "1" ]]; then
 fi
 
 log "building ${IMAGE_REPO}:${IMAGE_TAG} for ${PLATFORMS}"
-if [[ "${INSTALL_OLLAMA_VALUE}" != "1" ]]; then
-  log "INSTALL_OLLAMA=${INSTALL_OLLAMA_VALUE}, skipping ollama binary in this image"
-fi
-if [[ "${INSTALL_TRANSFORMERS_VALUE}" != "1" ]]; then
-  log "INSTALL_TRANSFORMERS=${INSTALL_TRANSFORMERS_VALUE}, skipping transformers runtime in this image"
-fi
 
 if [[ "${PUSH}" == "1" ]]; then
   docker buildx build "${BUILD_ARGS[@]}" --push "${REPO_ROOT}"

@@ -1,35 +1,18 @@
 name: gemma-local
 
 x-runtime-env: &runtime-env
-  MODEL_RUNTIME: ${MODEL_RUNTIME:-llama.cpp}
   MODEL_PREPARE_MODE: ${MODEL_PREPARE_MODE:-init}
   SERVICE_PORT: "8080"
   MODEL_ALIAS: ${MODEL_ALIAS:-gemma-4-e2b-it-q4km-local}
   MODEL_PATH: ${MODEL_PATH:-/models/gemma-4-E2B-it-Q4_K_M.gguf}
   MODEL_URL: ${MODEL_URL:-https://www.modelscope.cn/models/lmstudio-community/gemma-4-E2B-it-GGUF/resolve/master/gemma-4-E2B-it-Q4_K_M.gguf}
   MODEL_SHA256: ${MODEL_SHA256:-406607e5fffbfaea5f7ce78cfc02ef8e8c4eb8618e365b6f6da441c04e4d6066}
-  HF_MODEL_ID: ${HF_MODEL_ID:-}
-  HF_MODEL_REVISION: ${HF_MODEL_REVISION:-main}
-  HF_ENDPOINT: ${HF_ENDPOINT:-https://hf-mirror.com}
-  OLLAMA_MODEL: ${OLLAMA_MODEL:-}
-  OLLAMA_MODELS: ${OLLAMA_MODELS:-/models/ollama}
   CONTEXT_SIZE: ${CONTEXT_SIZE:-8192}
   BATCH_SIZE: ${BATCH_SIZE:-256}
   LLAMA_THREADS: ${LLAMA_THREADS:-8}
-  TORCH_NUM_THREADS: ${TORCH_NUM_THREADS:-8}
-  MAX_NEW_TOKENS: ${MAX_NEW_TOKENS:-256}
-  TEMPERATURE: ${TEMPERATURE:-0.2}
-  TOP_P: ${TOP_P:-0.95}
-  TOP_K: ${TOP_K:-40}
-  REPETITION_PENALTY: ${REPETITION_PENALTY:-1.1}
-  TRUST_REMOTE_CODE: ${TRUST_REMOTE_CODE:-false}
-  HF_TOKEN: ${HF_TOKEN:-}
-  HTTP_PROXY: ${RUNTIME_HTTP_PROXY:-}
-  HTTPS_PROXY: ${RUNTIME_HTTPS_PROXY:-}
-  NO_PROXY: ${RUNTIME_NO_PROXY:-localhost,127.0.0.1,::1,host.docker.internal}
-  http_proxy: ${RUNTIME_HTTP_PROXY:-}
-  https_proxy: ${RUNTIME_HTTPS_PROXY:-}
-  no_proxy: ${RUNTIME_NO_PROXY:-localhost,127.0.0.1,::1,host.docker.internal}
+  HTTP_PROXY: ${HTTP_PROXY:-}
+  HTTPS_PROXY: ${HTTPS_PROXY:-}
+  NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1,host.docker.internal}
 
 x-runtime-common: &runtime-common
   image: ${IMAGE_REPO:-ghcr.io/wilsonwu/run-gemma-4}:${IMAGE_TAG:-latest}
