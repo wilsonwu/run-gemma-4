@@ -80,9 +80,25 @@ For users outside China:
 
 ## Docker Compose Quick Start
 
-1. Copy `.env.example` to `.env`.
-2. Review `MODEL_URL`, `MODEL_SHA256`, and `IMAGE_TAG`.
-3. Start the stack:
+1. Run the guided installer:
+
+```bash
+bash install.sh
+```
+
+On Windows PowerShell, you can launch the same flow with:
+
+```powershell
+.\install.ps1
+```
+
+If you prefer a shell environment, run `bash install.sh` from Git Bash or WSL after Docker Desktop is already running.
+
+1. The script checks Docker, creates or updates `.env`, prompts for the values that usually need operator input, and starts Docker Compose for you.
+
+1. Before prompting, the installer can probe `GitHub`, `GHCR`, and `ModelScope`. On mainland-China-like networks it will recommend keeping the ModelScope model URL, importing proxy values from the current shell when available, and prompting earlier for a mirrored `IMAGE_REPO` if GHCR looks restricted.
+
+1. If you prefer the manual path, copy `.env.example` to `.env`, review `MODEL_URL`, `MODEL_SHA256`, and `IMAGE_TAG`, then start the stack:
 
 ```bash
 docker compose up -d
@@ -112,8 +128,10 @@ Notes:
 - Compose defaults to `ghcr.io/wilsonwu/run-gemma-4:latest`.
 - The compose file bind-mounts the local `docker/entrypoint.sh` and `docker/prepare-model.sh`, so local script updates take effect immediately.
 - Runtime proxy variables are supported through `.env.example`.
+- If the installer detects mainland-China-like network conditions, it will surface a GHCR-specific recommendation before you confirm `.env`.
 - If a model download is interrupted, restarting Compose will resume the download.
 - If a downloaded GGUF file is corrupt, it will be deleted and downloaded again automatically.
+- `install.sh` also supports `bash install.sh --yes` for default values and `bash install.sh --no-start` if you only want to prepare `.env`.
 
 ## Kubernetes Quick Start
 
@@ -237,6 +255,8 @@ Use GitHub Actions as the default publishing path. The fallback script [docker/p
 
 - [Dockerfile](Dockerfile): container image definition
 - [compose.yaml](compose.yaml): local one-command entry point
+- [install.sh](install.sh): guided Docker Compose launcher for macOS, Linux, and Windows shells such as Git Bash or WSL
+- [install.ps1](install.ps1): Windows PowerShell wrapper that launches the same guided installer flow
 - [.env.example](.env.example): Compose environment template
 - [docker/prepare-model.sh](docker/prepare-model.sh): model download logic with resume and checksum verification
 - [docker/entrypoint.sh](docker/entrypoint.sh): runtime dispatch logic

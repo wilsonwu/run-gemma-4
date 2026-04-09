@@ -83,9 +83,25 @@ python3 scripts/benchmark_completion.py \
 
 ## Docker Compose 一键启动
 
-1. 复制 `.env.example` 为 `.env`
-2. 检查 `MODEL_URL`、`MODEL_SHA256`、`IMAGE_TAG`
-3. 启动：
+1. 先运行交互式安装脚本：
+
+```bash
+bash install.sh
+```
+
+Windows PowerShell 下也可以直接运行：
+
+```powershell
+.\install.ps1
+```
+
+如果你更习惯 shell 环境，也可以在 Git Bash 或 WSL 中执行 `bash install.sh`，并确保 Docker Desktop 已经启动。
+
+1. 脚本会自动检查 Docker、创建或更新 `.env`、引导输入通常需要人工确认的参数，然后直接启动 Docker Compose。
+
+1. 在进入参数输入前，安装器会探测 `GitHub`、`GHCR` 和 `ModelScope` 的可达性。如果判断出是“中国大陆风格”或类似受限网络，它会默认建议保留 ModelScope 模型地址、优先导入当前 shell 里的代理变量，并更早提示你是否要改成镜像 `IMAGE_REPO`。
+
+1. 如果你仍然想手工方式启动，也可以先复制 `.env.example` 为 `.env`，检查 `MODEL_URL`、`MODEL_SHA256`、`IMAGE_TAG`，再执行：
 
 ```bash
 docker compose up -d
@@ -115,8 +131,10 @@ curl http://127.0.0.1:8080/completion \
 - Compose 默认使用 `ghcr.io/wilsonwu/run-gemma-4:latest`
 - Compose 会把本地的 `docker/entrypoint.sh` 和 `docker/prepare-model.sh` bind mount 进容器，所以你本地修改脚本后不必重建镜像
 - `.env.example` 里保留了运行时代理参数
+- 如果安装器检测到中国大陆风格或类似受限网络，会在你确认 `.env` 之前先给出 GHCR 相关的镜像源 / 代理建议
 - 模型下载中断后，重新执行 `docker compose up` 会继续下载
 - 如果 GGUF 文件损坏，脚本会自动删除并重新下载
+- `install.sh` 还支持 `bash install.sh --yes` 直接接受默认值，以及 `bash install.sh --no-start` 只生成 `.env` 不启动
 
 ## Kubernetes 一键部署
 
@@ -240,6 +258,8 @@ GitHub Actions 应该是默认的镜像发布路径。本地脚本 [docker/publi
 
 - [Dockerfile](Dockerfile)：镜像定义
 - [compose.yaml](compose.yaml)：本地一键入口
+- [install.sh](install.sh)：面向 macOS、Linux 以及 Windows Git Bash / WSL 的交互式 Compose 启动脚本
+- [install.ps1](install.ps1)：Windows PowerShell 包装入口，内部仍然复用同一套交互式安装流程
 - [.env.example](.env.example)：Compose 环境变量模板
 - [docker/prepare-model.sh](docker/prepare-model.sh)：支持断点续传和校验的模型下载脚本
 - [docker/entrypoint.sh](docker/entrypoint.sh)：运行时分发入口
