@@ -12,6 +12,21 @@ Example response from the default local chat UI:
 
 ![Example inference response in the English UI](screenshot-en.png)
 
+## Performance Snapshot
+
+All rows below use the same benchmark profile unless noted otherwise:
+
+- Endpoint: `/completion`
+- Method: 1 warm-up request, then 5 measured requests
+- Request shape: 29 prompt tokens, `n_predict=128`, `temperature=0.1`, `ignore_eos=true`
+- Image repository: `ghcr.io/wilsonwu/run-gemma-4`
+
+| Date | Host CPU | Deployment | Image tag | Model | Avg gen tokens/s | Gen range | Avg prompt tokens/s | Avg gen time | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 2026-04-08 | Apple M4 Pro | Docker Compose | `54a01e6` | `gemma-4-E2B-it-Q4_K_M.gguf` | `25.33` | `24.52-25.90` | `42.39` | `5055.6 ms` | Local baseline |
+
+Treat this as a machine-specific reference point, not a universal guarantee. Throughput will move with CPU model, Docker resource allocation, prompt length, output length, and concurrent load.
+
 ## What Users Get
 
 - A published image on GHCR.
