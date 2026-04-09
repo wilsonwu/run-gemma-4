@@ -21,14 +21,27 @@
 
 - 接口：`/completion`
 - 方法：先做 1 次预热，再连续请求 5 次做统计
-- 请求规格：29 个 prompt token，`n_predict=128`，`temperature=0.1`，`ignore_eos=true`
+- 请求规格：使用 [scripts/benchmark_completion.py](scripts/benchmark_completion.py) 的默认 prompt，在当前模型上为 19 个 prompt token，`n_predict=128`，`temperature=0.1`，`ignore_eos=true`
 - 镜像仓库：`ghcr.io/wilsonwu/run-gemma-4`
 
 | 日期 | 宿主机 CPU | 运行方式 | 镜像 tag | 模型文件 | 平均生成吞吐 | 生成吞吐范围 | 平均 prompt 吞吐 | 平均生成耗时 | 备注 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-04-08 | Apple M4 Pro | Docker Compose | `54a01e6` | `gemma-4-E2B-it-Q4_K_M.gguf` | `25.33 tokens/s` | `24.52-25.90 tokens/s` | `42.39 tokens/s` | `5055.6 ms` | 当前本地基线 |
+| 2026-04-09 | Apple M4 Pro | Docker Compose | `sha-d987db5` | `gemma-4-E2B-it-Q4_K_M.gguf` | `48.89 tokens/s` | `48.50-49.65 tokens/s` | `82.45 tokens/s` | `2618.5 ms` | 当前本地基线 |
 
 这个结果应该视为“当前机器上的参考值”，不是通用承诺。CPU 型号、Docker 资源限制、prompt 长度、输出长度以及并发负载变化，都会直接影响吞吐。
+
+如果你要复现或者追加一条新的机器记录，可以直接运行：
+
+```bash
+python3 scripts/benchmark_completion.py \
+  --host-cpu "Apple M4 Pro" \
+  --deployment "Docker Compose" \
+  --image-tag sha-d987db5 \
+  --model-file gemma-4-E2B-it-Q4_K_M.gguf \
+  --notes "当前本地基线"
+```
+
+这个脚本会输出每轮的 prompt / generation 吞吐结果，最后再给出一行可以直接贴回上面表格的 Markdown 记录。
 
 ## 用户最终得到什么
 

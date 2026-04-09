@@ -18,14 +18,27 @@ All rows below use the same benchmark profile unless noted otherwise:
 
 - Endpoint: `/completion`
 - Method: 1 warm-up request, then 5 measured requests
-- Request shape: 29 prompt tokens, `n_predict=128`, `temperature=0.1`, `ignore_eos=true`
+- Request shape: default prompt from [scripts/benchmark_completion.py](scripts/benchmark_completion.py), 19 prompt tokens on this model, `n_predict=128`, `temperature=0.1`, `ignore_eos=true`
 - Image repository: `ghcr.io/wilsonwu/run-gemma-4`
 
 | Date | Host CPU | Deployment | Image tag | Model | Avg gen tokens/s | Gen range | Avg prompt tokens/s | Avg gen time | Notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 2026-04-08 | Apple M4 Pro | Docker Compose | `54a01e6` | `gemma-4-E2B-it-Q4_K_M.gguf` | `25.33` | `24.52-25.90` | `42.39` | `5055.6 ms` | Local baseline |
+| 2026-04-09 | Apple M4 Pro | Docker Compose | `sha-d987db5` | `gemma-4-E2B-it-Q4_K_M.gguf` | `48.89` | `48.50-49.65` | `82.45` | `2618.5 ms` | Local baseline |
 
 Treat this as a machine-specific reference point, not a universal guarantee. Throughput will move with CPU model, Docker resource allocation, prompt length, output length, and concurrent load.
+
+To reproduce or append a new row, run:
+
+```bash
+python3 scripts/benchmark_completion.py \
+  --host-cpu "Apple M4 Pro" \
+  --deployment "Docker Compose" \
+  --image-tag sha-d987db5 \
+  --model-file gemma-4-E2B-it-Q4_K_M.gguf \
+  --notes "Local baseline"
+```
+
+The script prints per-run prompt and generation throughput, then emits one Markdown table row you can paste back into the snapshot table.
 
 ## What Users Get
 
