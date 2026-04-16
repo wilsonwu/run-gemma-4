@@ -20,6 +20,7 @@ NON_INTERACTIVE=0
 NO_START=0
 FORCE_RECREATE=0
 BOOTSTRAP_MODE=0
+PROMPT_USE_TTY=0
 
 OS_NAME=""
 COMPOSE_NAME=""
@@ -165,8 +166,8 @@ ask_yes_no() {
   fi
 
   while true; do
-    printf '%s %s ' "$prompt" "$suffix"
-    IFS= read -r answer
+    prompt_printf '%s %s ' "$prompt" "$suffix"
+    prompt_readline answer
     answer="${answer,,}"
     if [[ -z "$answer" ]]; then
       answer="$default_answer"
@@ -201,15 +202,15 @@ prompt_with_default() {
   while true; do
     if [[ -n "$default_value" ]]; then
       if [[ "$clearable" -eq 1 ]]; then
-        printf '%s [%s] (Enter to keep, - to clear): ' "$prompt" "$default_value"
+        prompt_printf '%s [%s] (Enter to keep, - to clear): ' "$prompt" "$default_value"
       else
-        printf '%s [%s]: ' "$prompt" "$default_value"
+        prompt_printf '%s [%s]: ' "$prompt" "$default_value"
       fi
     else
-      printf '%s: ' "$prompt"
+      prompt_printf '%s: ' "$prompt"
     fi
 
-    IFS= read -r input
+    prompt_readline input
 
     if [[ -z "$input" ]]; then
       input="$default_value"
@@ -255,6 +256,50 @@ prompt_positive_integer() {
 
     return
   done
+}
+
+setup_prompt_io() {
+  if [[ "$NON_INTERACTIVE" -eq 1 ]]; then
+    return
+  fi
+
+  if [[ -t 0 ]]; then
+    return
+  fi
+
+  if [[ -r /dev/tty && -w /dev/tty ]]; then
+    exec 3</dev/tty
+    exec 4>/dev/tty
+    PROMPT_USE_TTY=1
+    return
+  fi
+
+  die 'interactive mode requires a terminal. When using curl | bash, run it from a real shell or pass --yes with explicit flags.'
+}
+
+prompt_printf() {
+  if [[ "$PROMPT_USE_TTY" -eq 1 ]]; then
+    printf "$@" >&4
+  else
+    printf "$@"
+  fi
+}
+
+prompt_readline() {
+  local variable_name="$1"
+  local input=""
+
+  if [[ "$PROMPT_USE_TTY" -eq 1 ]]; then
+    if ! IFS= read -r -u 3 input; then
+      die 'interactive input was closed'
+    fi
+  else
+    if ! IFS= read -r input; then
+      die 'interactive input was closed'
+    fi
+  fi
+
+  printf -v "$variable_name" '%s' "$input"
 }
 
 require_command() {
@@ -566,8 +611,8 @@ configure_existing_env_strategy() {
   printf '  4) Exit\n'
 
   while true; do
-    printf 'Choose an option [1-4]: '
-    IFS= read -r choice
+    prompt_printf 'Choose an option [1-4]: '
+    prompt_readline choice
     case "$choice" in
       1)
         CONFIGURE_VALUES=0
@@ -807,6 +852,7 @@ print_intro() {
 main() {
   parse_args "$@"
   detect_os
+  setup_prompt_io
   resolve_runtime_root
   cd "$REPO_ROOT"
   print_intro
