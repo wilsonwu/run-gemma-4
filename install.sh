@@ -168,16 +168,15 @@ ask_yes_no() {
   while true; do
     prompt_printf '%s %s ' "$prompt" "$suffix"
     prompt_readline answer
-    answer="${answer,,}"
     if [[ -z "$answer" ]]; then
       answer="$default_answer"
     fi
 
     case "$answer" in
-      y|yes)
+      y|Y|yes|YES|Yes|yEs|yeS|YEs|YeS|yES)
         return 0
         ;;
-      n|no)
+      n|N|no|NO|No|nO)
         return 1
         ;;
     esac
