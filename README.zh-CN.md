@@ -118,6 +118,8 @@ irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | ie
 
 1. 脚本会自动检查 Docker、创建或更新 `.env`、引导输入通常需要人工确认的参数，然后直接启动 Docker Compose。在线模式下，它会先把 `compose.yaml` 和 `.env.example` 下载到本地安装目录，再继续走同一套交互流程。
 
+在线安装默认会使用 `$HOME/run-gemma-4`，而不是当前工作目录，所以你即使在别的项目目录里执行，也不会默认把这套 Compose 文件嵌到那个仓库下面。
+
 1. 在进入参数输入前，安装器会探测 `GitHub`、`GHCR` 和 `ModelScope` 的可达性。如果判断出是“中国大陆风格”或类似受限网络，它会默认建议保留 ModelScope 模型地址、优先导入当前 shell 里的代理变量，并更早提示你是否要改成镜像 `IMAGE_REPO`。
 
 1. 如果你仍然想手工方式启动，也可以先复制 `.env.example` 为 `.env`，检查 `MODEL_URL`、`MODEL_SHA256`、`IMAGE_TAG`，再执行：

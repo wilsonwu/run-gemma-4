@@ -115,6 +115,8 @@ If you prefer a shell environment, run `bash install.sh` from Git Bash or WSL af
 
 1. The script checks Docker, creates or updates `.env`, prompts for the values that usually need operator input, and starts Docker Compose for you. In online mode it first downloads `compose.yaml` and `.env.example` into a local install directory, then continues with the same guided flow.
 
+By default, online installs use `$HOME/run-gemma-4` instead of the current working directory, so running the installer from another project folder does not nest this stack inside that repository.
+
 1. Before prompting, the installer can probe `GitHub`, `GHCR`, and `ModelScope`. On mainland-China-like networks it will recommend keeping the ModelScope model URL, importing proxy values from the current shell when available, and prompting earlier for a mirrored `IMAGE_REPO` if GHCR looks restricted.
 
 1. If you prefer the manual path, copy `.env.example` to `.env`, review `MODEL_URL`, `MODEL_SHA256`, and `IMAGE_TAG`, then start the stack:

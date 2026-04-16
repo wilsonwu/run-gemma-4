@@ -83,7 +83,7 @@ Options:
   -y, --yes                 Accept defaults and skip interactive prompts.
   --force                   Recreate .env from template defaults instead of reusing it.
   --no-start                Write .env only. Do not start Docker Compose.
-  --install-dir PATH        Target directory for online installs. Defaults to ./run-gemma-4.
+  --install-dir PATH        Target directory for online installs. Defaults to $HOME/run-gemma-4.
   --ref REF                 Git ref used for raw asset downloads. Defaults to main.
   --asset-base-url URL      Override the raw asset base URL.
   -h, --help                Show this help message.
@@ -369,6 +369,7 @@ load_template_defaults() {
 
 resolve_runtime_root() {
   local candidate_dir=""
+  local default_install_dir=""
 
   if [[ -n "$SCRIPT_SOURCE" ]]; then
     candidate_dir="$(cd "$(dirname "$SCRIPT_SOURCE")" 2>/dev/null && pwd || true)"
@@ -387,7 +388,12 @@ resolve_runtime_root() {
   require_command curl || die 'curl is required for online installation'
 
   if [[ -z "$INSTALL_DIR" ]]; then
-    INSTALL_DIR="${PWD}/run-gemma-4"
+    if [[ -n "${HOME:-}" ]]; then
+      default_install_dir="${HOME}/run-gemma-4"
+    else
+      default_install_dir="${PWD}/run-gemma-4"
+    fi
+    INSTALL_DIR="$default_install_dir"
   fi
 
   prompt_with_default 'Install directory' INSTALL_DIR "$INSTALL_DIR" 0 0
