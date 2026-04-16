@@ -1,10 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="${SCRIPT_DIR}"
-ENV_TEMPLATE="${REPO_ROOT}/.env.example"
-ENV_FILE="${REPO_ROOT}/.env"
+SCRIPT_SOURCE="${BASH_SOURCE[0]:-}"
+SCRIPT_DIR=""
+REPO_ROOT=""
+ENV_TEMPLATE=""
+ENV_FILE=""
+
+REMOTE_REPO_URL="https://github.com/wilsonwu/run-gemma-4"
+REMOTE_REF="${RUN_GEMMA_REF:-main}"
+ASSET_BASE_URL="${RUN_GEMMA_ASSET_BASE_URL:-}"
+INSTALL_DIR="${RUN_GEMMA_INSTALL_DIR:-}"
 
 SHELL_HTTP_PROXY="${HTTP_PROXY:-${http_proxy:-}}"
 SHELL_HTTPS_PROXY="${HTTPS_PROXY:-${https_proxy:-}}"
@@ -13,6 +19,7 @@ SHELL_NO_PROXY="${NO_PROXY:-${no_proxy:-}}"
 NON_INTERACTIVE=0
 NO_START=0
 FORCE_RECREATE=0
+BOOTSTRAP_MODE=0
 
 OS_NAME=""
 COMPOSE_NAME=""
@@ -66,14 +73,20 @@ Usage: bash install.sh [options]
 
 Interactive Docker Compose launcher for run-gemma-4.
 
-The installer can probe GitHub, GHCR, and ModelScope reachability to suggest
-mainland-China-friendly defaults before writing .env.
+You can run it from a cloned repository, or stream it directly:
+  curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | bash
+
+When streamed, the installer downloads compose.yaml and .env.example into a
+local install directory before writing .env and starting Docker Compose.
 
 Options:
-  -y, --yes       Accept defaults and skip interactive prompts.
-  --force         Recreate .env from template defaults instead of reusing it.
-  --no-start      Write .env only. Do not start Docker Compose.
-  -h, --help      Show this help message.
+  -y, --yes                 Accept defaults and skip interactive prompts.
+  --force                   Recreate .env from template defaults instead of reusing it.
+  --no-start                Write .env only. Do not start Docker Compose.
+  --install-dir PATH        Target directory for online installs. Defaults to $HOME/run-gemma-4.
+  --ref REF                 Git ref used for raw asset downloads. Defaults to main.
+  --asset-base-url URL      Override the raw asset base URL.
+  -h, --help                Show this help message.
 
 Windows note:
   Run this script from Git Bash or WSL after Docker Desktop is already running.
@@ -91,6 +104,21 @@ parse_args() {
         ;;
       --no-start)
         NO_START=1
+        ;;
+      --install-dir)
+        [[ $# -ge 2 ]] || die '--install-dir requires a value'
+        INSTALL_DIR="$2"
+        shift
+        ;;
+      --ref)
+        [[ $# -ge 2 ]] || die '--ref requires a value'
+        REMOTE_REF="$2"
+        shift
+        ;;
+      --asset-base-url)
+        [[ $# -ge 2 ]] || die '--asset-base-url requires a value'
+        ASSET_BASE_URL="$2"
+        shift
         ;;
       -h|--help)
         usage
@@ -153,7 +181,7 @@ ask_yes_no() {
         ;;
     esac
 
-    warn "please answer y or n"
+    warn 'please answer y or n'
   done
 }
 
@@ -190,7 +218,7 @@ prompt_with_default() {
     fi
 
     if [[ "$allow_empty" -eq 0 && -z "$input" ]]; then
-      warn "this value cannot be empty"
+      warn 'this value cannot be empty'
       continue
     fi
 
@@ -211,12 +239,12 @@ prompt_positive_integer() {
     input="${!variable_name}"
 
     if [[ ! "$input" =~ ^[0-9]+$ ]]; then
-      warn "please enter a positive integer"
+      warn 'please enter a positive integer'
       continue
     fi
 
     if [[ "$input" -lt 1 ]]; then
-      warn "value must be greater than zero"
+      warn 'value must be greater than zero'
       continue
     fi
 
@@ -227,6 +255,65 @@ prompt_positive_integer() {
 
     return
   done
+}
+
+require_command() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+set_repo_paths() {
+  ENV_TEMPLATE="${REPO_ROOT}/.env.example"
+  ENV_FILE="${REPO_ROOT}/.env"
+}
+
+resolve_asset_base_url() {
+  if [[ -n "$ASSET_BASE_URL" ]]; then
+    return
+  fi
+
+  ASSET_BASE_URL="https://raw.githubusercontent.com/wilsonwu/run-gemma-4/${REMOTE_REF}"
+}
+
+asset_url() {
+  local relative_path="$1"
+  printf '%s/%s' "${ASSET_BASE_URL%/}" "$relative_path"
+}
+
+backup_if_changed() {
+  local current_path="$1"
+  local new_path="$2"
+  local backup_path=""
+
+  if [[ ! -f "$current_path" ]]; then
+    return
+  fi
+
+  if cmp -s "$current_path" "$new_path"; then
+    return
+  fi
+
+  backup_path="${current_path}.bak.$(date +%Y%m%d-%H%M%S)"
+  cp "$current_path" "$backup_path"
+  log "backed up $(basename "$current_path") to $(basename "$backup_path")"
+}
+
+download_asset() {
+  local relative_path="$1"
+  local destination_path="$2"
+  local tmp_path="${destination_path}.tmp"
+  local source_url=""
+
+  source_url="$(asset_url "$relative_path")"
+  log "downloading $relative_path from $source_url"
+  curl -fsSL "$source_url" -o "$tmp_path"
+
+  if [[ -f "$destination_path" ]] && cmp -s "$destination_path" "$tmp_path"; then
+    rm -f "$tmp_path"
+    return
+  fi
+
+  backup_if_changed "$destination_path" "$tmp_path"
+  mv "$tmp_path" "$destination_path"
 }
 
 load_env_values() {
@@ -278,6 +365,44 @@ load_template_defaults() {
   TEMPLATE_MODEL_URL="$MODEL_URL"
   TEMPLATE_MODEL_SHA256="$MODEL_SHA256"
   TEMPLATE_NO_PROXY="$NO_PROXY"
+}
+
+resolve_runtime_root() {
+  local candidate_dir=""
+  local default_install_dir=""
+
+  if [[ -n "$SCRIPT_SOURCE" ]]; then
+    candidate_dir="$(cd "$(dirname "$SCRIPT_SOURCE")" 2>/dev/null && pwd || true)"
+  fi
+
+  if [[ -n "$candidate_dir" && -f "$candidate_dir/compose.yaml" && -f "$candidate_dir/.env.example" ]]; then
+    SCRIPT_DIR="$candidate_dir"
+    REPO_ROOT="$candidate_dir"
+    BOOTSTRAP_MODE=0
+    set_repo_paths
+    return
+  fi
+
+  BOOTSTRAP_MODE=1
+  resolve_asset_base_url
+  require_command curl || die 'curl is required for online installation'
+
+  if [[ -z "$INSTALL_DIR" ]]; then
+    if [[ -n "${HOME:-}" ]]; then
+      default_install_dir="${HOME}/run-gemma-4"
+    else
+      default_install_dir="${PWD}/run-gemma-4"
+    fi
+    INSTALL_DIR="$default_install_dir"
+  fi
+
+  prompt_with_default 'Install directory' INSTALL_DIR "$INSTALL_DIR" 0 0
+  mkdir -p "$INSTALL_DIR"
+  REPO_ROOT="$(cd "$INSTALL_DIR" && pwd)"
+  set_repo_paths
+
+  download_asset 'compose.yaml' "${REPO_ROOT}/compose.yaml"
+  download_asset '.env.example' "$ENV_TEMPLATE"
 }
 
 probe_url_status() {
@@ -464,7 +589,7 @@ configure_existing_env_strategy() {
         exit 0
         ;;
     esac
-    warn "please choose 1, 2, 3, or 4"
+    warn 'please choose 1, 2, 3, or 4'
   done
 }
 
@@ -485,8 +610,8 @@ show_configuration() {
 }
 
 prompt_for_configuration() {
-  local proxy_default="n"
-  local advanced_default="n"
+  local proxy_default='n'
+  local advanced_default='n'
 
   printf '\nCompose configuration\n'
   printf 'Press Enter to keep a value. Use - on clearable fields to erase the current value.\n'
@@ -508,7 +633,7 @@ prompt_for_configuration() {
   prompt_with_default 'Model SHA256 checksum' MODEL_SHA256 "$MODEL_SHA256" 1 1
 
   if [[ -n "$HTTP_PROXY" || -n "$HTTPS_PROXY" || -n "$NO_PROXY" ]]; then
-    proxy_default="y"
+    proxy_default='y'
   fi
 
   if ask_yes_no 'Review proxy settings?' "$proxy_default"; then
@@ -551,7 +676,7 @@ validate_configuration() {
 }
 
 write_env_file() {
-  local backup_path=""
+  local backup_path=''
   local tmp_path="${ENV_FILE}.tmp"
 
   if [[ -f "$ENV_FILE" ]]; then
@@ -582,10 +707,6 @@ EOF
 
   mv "$tmp_path" "$ENV_FILE"
   log "wrote $(basename "$ENV_FILE")"
-}
-
-require_command() {
-  command -v "$1" >/dev/null 2>&1
 }
 
 detect_compose() {
@@ -629,7 +750,7 @@ check_runtime_prerequisites() {
 run_compose_workflow() {
   local pull_default='y'
 
-  log "validating compose configuration"
+  log 'validating compose configuration'
   compose config -q
 
   if [[ "$NO_START" -eq 1 ]]; then
@@ -641,7 +762,7 @@ run_compose_workflow() {
     pull_default='n'
   fi
 
-  if ask_yes_no "Pull the image before starting?" "$pull_default"; then
+  if ask_yes_no 'Pull the image before starting?' "$pull_default"; then
     if ! compose pull; then
       warn 'image pull failed'
       if [[ "$NETWORK_PROFILE" == 'mainland-china-like' ]]; then
@@ -657,10 +778,11 @@ run_compose_workflow() {
   compose up -d
 
   printf '\nStarted services\n'
-  printf '  API endpoint: http://127.0.0.1:%s/completion\n' "$HOST_PORT"
-  printf '  Show status:  %s ps\n' "$COMPOSE_NAME"
-  printf '  Show logs:    %s logs -f prepare-model gemma\n' "$COMPOSE_NAME"
-  printf '  Stop later:   %s down\n' "$COMPOSE_NAME"
+  printf '  Install dir:   %s\n' "$REPO_ROOT"
+  printf '  API endpoint:  http://127.0.0.1:%s/completion\n' "$HOST_PORT"
+  printf '  Show status:   %s ps\n' "$COMPOSE_NAME"
+  printf '  Show logs:     %s logs -f prepare-model gemma\n' "$COMPOSE_NAME"
+  printf '  Stop later:    %s down\n' "$COMPOSE_NAME"
 
   if ask_yes_no 'Follow startup logs now?' 'y'; then
     compose logs -f prepare-model gemma
@@ -669,7 +791,12 @@ run_compose_workflow() {
 
 print_intro() {
   printf 'Run Gemma 4 Compose Installer\n'
-  printf 'Repository: %s\n' "$REPO_ROOT"
+  printf 'Mode: %s\n' "$([[ "$BOOTSTRAP_MODE" -eq 1 ]] && printf 'online bootstrap' || printf 'local repository')"
+  printf 'Repository source: %s\n' "$REMOTE_REPO_URL"
+  if [[ "$BOOTSTRAP_MODE" -eq 1 ]]; then
+    printf 'Asset source: %s\n' "$ASSET_BASE_URL"
+  fi
+  printf 'Install directory: %s\n' "$REPO_ROOT"
   printf 'Detected OS: %s\n' "$OS_NAME"
 
   if [[ "$OS_NAME" == 'windows' ]]; then
@@ -680,6 +807,7 @@ print_intro() {
 main() {
   parse_args "$@"
   detect_os
+  resolve_runtime_root
   cd "$REPO_ROOT"
   print_intro
   check_runtime_prerequisites

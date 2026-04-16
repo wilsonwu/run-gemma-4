@@ -6,7 +6,23 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$scriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
+$repoUrl = 'https://github.com/wilsonwu/run-gemma-4'
+$defaultRef = if ($env:RUN_GEMMA_REF) { $env:RUN_GEMMA_REF } else { 'main' }
+$assetBaseUrl = if ($env:RUN_GEMMA_ASSET_BASE_URL) { $env:RUN_GEMMA_ASSET_BASE_URL.TrimEnd('/') } else { "https://raw.githubusercontent.com/wilsonwu/run-gemma-4/$defaultRef" }
+
+$scriptPath = $MyInvocation.MyCommand.Path
+$scriptRoot = if ($scriptPath) { Split-Path -Parent $scriptPath } else { $null }
+$localInstallSh = if ($scriptRoot) { Join-Path $scriptRoot 'install.sh' } else { $null }
+$installSource = $localInstallSh
+$tempRoot = $null
+
+if (-not $localInstallSh -or -not (Test-Path $localInstallSh)) {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("run-gemma-4-installer-" + [Guid]::NewGuid().ToString('N'))
+    New-Item -ItemType Directory -Path $tempRoot | Out-Null
+    $installSource = Join-Path $tempRoot 'install.sh'
+    Invoke-WebRequest -UseBasicParsing -Uri "$assetBaseUrl/install.sh" -OutFile $installSource
+}
+
 $bashCandidates = @()
 
 $bashCommand = Get-Command bash.exe -ErrorAction SilentlyContinue
@@ -23,20 +39,27 @@ $bashCandidates += @(
 
 $bashPath = $bashCandidates | Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
 
-if ($bashPath) {
-    & $bashPath "$scriptRoot/install.sh" @InstallerArgs
-    exit $LASTEXITCODE
-}
-
-$wslCommand = Get-Command wsl.exe -ErrorAction SilentlyContinue
-if ($wslCommand) {
-    $linuxScriptPath = (& $wslCommand.Source wslpath -a "$scriptRoot/install.sh").Trim()
-    if (-not $linuxScriptPath) {
-        throw 'Failed to convert install.sh to a WSL path.'
+try {
+    if ($bashPath) {
+        & $bashPath $installSource @InstallerArgs
+        exit $LASTEXITCODE
     }
 
-    & $wslCommand.Source bash $linuxScriptPath @InstallerArgs
-    exit $LASTEXITCODE
-}
+    $wslCommand = Get-Command wsl.exe -ErrorAction SilentlyContinue
+    if ($wslCommand) {
+        $linuxScriptPath = (& $wslCommand.Source wslpath -a $installSource).Trim()
+        if (-not $linuxScriptPath) {
+            throw 'Failed to convert install.sh to a WSL path.'
+        }
 
-throw 'Neither Git Bash nor WSL was found. Install Git for Windows or enable WSL, then rerun install.ps1.'
+        & $wslCommand.Source bash $linuxScriptPath @InstallerArgs
+        exit $LASTEXITCODE
+    }
+
+    throw 'Neither Git Bash nor WSL was found. Install Git for Windows or enable WSL, then rerun install.ps1.'
+}
+finally {
+    if ($tempRoot -and (Test-Path $tempRoot)) {
+        Remove-Item -Path $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}

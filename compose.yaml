@@ -17,8 +17,6 @@ x-runtime-env: &runtime-env
 x-runtime-common: &runtime-common
   image: ${IMAGE_REPO:-ghcr.io/wilsonwu/run-gemma-4}:${IMAGE_TAG:-latest}
   volumes:
-    - ./docker/entrypoint.sh:/usr/local/bin/entrypoint.sh:ro
-    - ./docker/prepare-model.sh:/usr/local/bin/prepare-model.sh:ro
     - model-cache:/models
     - tmp:/tmp
   environment: *runtime-env
