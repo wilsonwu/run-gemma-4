@@ -83,10 +83,23 @@ python3 scripts/benchmark_completion.py \
 
 ## Docker Compose 一键启动
 
-1. 先运行交互式安装脚本：
+1. 如果你已经在仓库目录里，可以直接运行交互式安装脚本：
 
 ```bash
 bash install.sh
+```
+
+如果你不想先 clone 仓库，也可以直接在线执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | bash
+```
+
+如果你要指定安装目录，或者固定某个 tag / 分支，可以把参数放到 `bash -s --` 后面：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | \
+  bash -s -- --install-dir "$HOME/run-gemma-4" --ref main
 ```
 
 Windows PowerShell 下也可以直接运行：
@@ -95,9 +108,15 @@ Windows PowerShell 下也可以直接运行：
 .\install.ps1
 ```
 
+如果不想先 clone，也可以在线执行：
+
+```powershell
+irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | iex
+```
+
 如果你更习惯 shell 环境，也可以在 Git Bash 或 WSL 中执行 `bash install.sh`，并确保 Docker Desktop 已经启动。
 
-1. 脚本会自动检查 Docker、创建或更新 `.env`、引导输入通常需要人工确认的参数，然后直接启动 Docker Compose。
+1. 脚本会自动检查 Docker、创建或更新 `.env`、引导输入通常需要人工确认的参数，然后直接启动 Docker Compose。在线模式下，它会先把 `compose.yaml` 和 `.env.example` 下载到本地安装目录，再继续走同一套交互流程。
 
 1. 在进入参数输入前，安装器会探测 `GitHub`、`GHCR` 和 `ModelScope` 的可达性。如果判断出是“中国大陆风格”或类似受限网络，它会默认建议保留 ModelScope 模型地址、优先导入当前 shell 里的代理变量，并更早提示你是否要改成镜像 `IMAGE_REPO`。
 
@@ -129,12 +148,13 @@ curl http://127.0.0.1:8080/completion \
 说明：
 
 - Compose 默认使用 `ghcr.io/wilsonwu/run-gemma-4:latest`
-- Compose 会把本地的 `docker/entrypoint.sh` 和 `docker/prepare-model.sh` bind mount 进容器，所以你本地修改脚本后不必重建镜像
+- 基础版 [compose.yaml](compose.yaml) 现在是独立可运行的，不要求本地先有完整仓库
+- 仓库里额外提供了 [compose.override.yaml](compose.override.yaml)，所以你在仓库目录执行 `docker compose up` 时，仍然会自动 bind mount `docker/entrypoint.sh` 和 `docker/prepare-model.sh` 方便本地调试脚本
 - `.env.example` 里保留了运行时代理参数
 - 如果安装器检测到中国大陆风格或类似受限网络，会在你确认 `.env` 之前先给出 GHCR 相关的镜像源 / 代理建议
 - 模型下载中断后，重新执行 `docker compose up` 会继续下载
 - 如果 GGUF 文件损坏，脚本会自动删除并重新下载
-- `install.sh` 还支持 `bash install.sh --yes` 直接接受默认值，以及 `bash install.sh --no-start` 只生成 `.env` 不启动
+- `install.sh` 还支持 `bash install.sh --yes` 直接接受默认值、`bash install.sh --no-start` 只生成 `.env` 不启动，以及 `bash install.sh --install-dir /path/to/run-gemma-4` 用于在线安装到指定目录
 
 ## Kubernetes 一键部署
 
@@ -257,9 +277,10 @@ GitHub Actions 应该是默认的镜像发布路径。本地脚本 [docker/publi
 ## 仓库结构
 
 - [Dockerfile](Dockerfile)：镜像定义
-- [compose.yaml](compose.yaml)：本地一键入口
-- [install.sh](install.sh)：面向 macOS、Linux 以及 Windows Git Bash / WSL 的交互式 Compose 启动脚本
-- [install.ps1](install.ps1)：Windows PowerShell 包装入口，内部仍然复用同一套交互式安装流程
+- [compose.yaml](compose.yaml)：只依赖已发布镜像即可运行的独立 Compose 入口
+- [compose.override.yaml](compose.override.yaml)：仓库本地开发覆盖层，用于把调试脚本 bind mount 进容器
+- [install.sh](install.sh)：既支持本地仓库执行，也支持 `curl | bash` 在线安装的交互式 Compose 启动脚本
+- [install.ps1](install.ps1)：Windows PowerShell 包装入口，支持同一套本地 / 在线安装流程
 - [.env.example](.env.example)：Compose 环境变量模板
 - [docker/prepare-model.sh](docker/prepare-model.sh)：支持断点续传和校验的模型下载脚本
 - [docker/entrypoint.sh](docker/entrypoint.sh)：运行时分发入口

@@ -80,10 +80,23 @@ For users outside China:
 
 ## Docker Compose Quick Start
 
-1. Run the guided installer:
+1. Run the guided installer from the repository:
 
 ```bash
 bash install.sh
+```
+
+Or run it directly from the network without cloning the repository first:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | bash
+```
+
+To install into a specific directory or pin a tag / branch, pass arguments after `bash -s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | \
+  bash -s -- --install-dir "$HOME/run-gemma-4" --ref main
 ```
 
 On Windows PowerShell, you can launch the same flow with:
@@ -92,9 +105,15 @@ On Windows PowerShell, you can launch the same flow with:
 .\install.ps1
 ```
 
+Or execute it online without cloning first:
+
+```powershell
+irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | iex
+```
+
 If you prefer a shell environment, run `bash install.sh` from Git Bash or WSL after Docker Desktop is already running.
 
-1. The script checks Docker, creates or updates `.env`, prompts for the values that usually need operator input, and starts Docker Compose for you.
+1. The script checks Docker, creates or updates `.env`, prompts for the values that usually need operator input, and starts Docker Compose for you. In online mode it first downloads `compose.yaml` and `.env.example` into a local install directory, then continues with the same guided flow.
 
 1. Before prompting, the installer can probe `GitHub`, `GHCR`, and `ModelScope`. On mainland-China-like networks it will recommend keeping the ModelScope model URL, importing proxy values from the current shell when available, and prompting earlier for a mirrored `IMAGE_REPO` if GHCR looks restricted.
 
@@ -126,12 +145,13 @@ curl http://127.0.0.1:8080/completion \
 Notes:
 
 - Compose defaults to `ghcr.io/wilsonwu/run-gemma-4:latest`.
-- The compose file bind-mounts the local `docker/entrypoint.sh` and `docker/prepare-model.sh`, so local script updates take effect immediately.
+- The base [compose.yaml](compose.yaml) is standalone and works without a repository checkout.
+- This repository also includes [compose.override.yaml](compose.override.yaml), so local `docker compose up` still bind-mounts `docker/entrypoint.sh` and `docker/prepare-model.sh` for script iteration.
 - Runtime proxy variables are supported through `.env.example`.
 - If the installer detects mainland-China-like network conditions, it will surface a GHCR-specific recommendation before you confirm `.env`.
 - If a model download is interrupted, restarting Compose will resume the download.
 - If a downloaded GGUF file is corrupt, it will be deleted and downloaded again automatically.
-- `install.sh` also supports `bash install.sh --yes` for default values and `bash install.sh --no-start` if you only want to prepare `.env`.
+- `install.sh` also supports `bash install.sh --yes` for default values, `bash install.sh --no-start` if you only want to prepare `.env`, and `bash install.sh --install-dir /path/to/run-gemma-4` for online bootstrap installs.
 
 ## Kubernetes Quick Start
 
@@ -254,9 +274,10 @@ Use GitHub Actions as the default publishing path. The fallback script [docker/p
 ## Repository Layout
 
 - [Dockerfile](Dockerfile): container image definition
-- [compose.yaml](compose.yaml): local one-command entry point
-- [install.sh](install.sh): guided Docker Compose launcher for macOS, Linux, and Windows shells such as Git Bash or WSL
-- [install.ps1](install.ps1): Windows PowerShell wrapper that launches the same guided installer flow
+- [compose.yaml](compose.yaml): standalone Docker Compose entry point that works with published images only
+- [compose.override.yaml](compose.override.yaml): local repository override that bind-mounts development scripts into the containers
+- [install.sh](install.sh): guided Docker Compose launcher for local use or direct `curl | bash` online installs
+- [install.ps1](install.ps1): Windows PowerShell wrapper for the same local or online installer flow
 - [.env.example](.env.example): Compose environment template
 - [docker/prepare-model.sh](docker/prepare-model.sh): model download logic with resume and checksum verification
 - [docker/entrypoint.sh](docker/entrypoint.sh): runtime dispatch logic
