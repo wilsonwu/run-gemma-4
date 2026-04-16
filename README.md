@@ -6,6 +6,27 @@ This repository packages one practical Gemma 4 inference path that users can sta
 
 The default experience is CPU-first and uses `llama.cpp + GGUF`, because that is the most realistic way to offer a one-command inference setup across laptops, Docker hosts, and Kubernetes clusters.
 
+## Quick Start
+
+The preferred path is the online installer, so users do not need to clone the repository first:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | bash
+```
+
+On Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | iex
+```
+
+If you want a fixed install directory or a pinned branch / tag:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | \
+  bash -s -- --install-dir "$HOME/run-gemma-4" --ref main
+```
+
 ## Preview
 
 Example response from the default local chat UI:
@@ -80,35 +101,29 @@ For users outside China:
 
 ## Docker Compose Quick Start
 
-1. Run the guided installer from the repository:
-
-```bash
-bash install.sh
-```
-
-Or run it directly from the network without cloning the repository first:
+1. Preferred path: run the guided installer directly from the network without cloning the repository first:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | bash
 ```
 
-To install into a specific directory or pin a tag / branch, pass arguments after `bash -s --`:
+1. On Windows PowerShell, use the online installer too:
+
+```powershell
+irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | iex
+```
+
+1. To install into a specific directory or pin a tag / branch, pass arguments after `bash -s --`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | \
   bash -s -- --install-dir "$HOME/run-gemma-4" --ref main
 ```
 
-On Windows PowerShell, you can launch the same flow with:
+1. If you already cloned the repository and want to stay inside it, run the local wrapper instead:
 
-```powershell
-.\install.ps1
-```
-
-Or execute it online without cloning first:
-
-```powershell
-irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | iex
+```bash
+bash install.sh
 ```
 
 If you prefer a shell environment, run `bash install.sh` from Git Bash or WSL after Docker Desktop is already running.

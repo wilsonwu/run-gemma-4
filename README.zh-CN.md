@@ -9,6 +9,27 @@
 
 默认路径是 CPU 优先的 `llama.cpp + GGUF`，因为这是在笔记本、Docker 主机和 Kubernetes 集群之间最容易统一、也最容易真正跑起来的方案。
 
+## 快速开始
+
+推荐优先使用在线安装方式，这样用户不需要先 clone 仓库：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | bash
+```
+
+Windows PowerShell：
+
+```powershell
+irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | iex
+```
+
+如果你要固定安装目录，或者指定分支 / tag：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | \
+  bash -s -- --install-dir "$HOME/run-gemma-4" --ref main
+```
+
 ## 效果预览
 
 下面是默认本地聊天界面的中文响应示例：
@@ -83,35 +104,29 @@ python3 scripts/benchmark_completion.py \
 
 ## Docker Compose 一键启动
 
-1. 如果你已经在仓库目录里，可以直接运行交互式安装脚本：
-
-```bash
-bash install.sh
-```
-
-如果你不想先 clone 仓库，也可以直接在线执行：
+1. 推荐优先使用在线安装脚本，不需要先 clone 仓库：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | bash
 ```
 
-如果你要指定安装目录，或者固定某个 tag / 分支，可以把参数放到 `bash -s --` 后面：
+1. Windows PowerShell 也优先使用在线安装：
+
+```powershell
+irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | iex
+```
+
+1. 如果你要指定安装目录，或者固定某个 tag / 分支，可以把参数放到 `bash -s --` 后面：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.sh | \
   bash -s -- --install-dir "$HOME/run-gemma-4" --ref main
 ```
 
-Windows PowerShell 下也可以直接运行：
+1. 如果你已经在仓库目录里，也可以直接运行本地交互式安装脚本：
 
-```powershell
-.\install.ps1
-```
-
-如果不想先 clone，也可以在线执行：
-
-```powershell
-irm https://raw.githubusercontent.com/wilsonwu/run-gemma-4/main/install.ps1 | iex
+```bash
+bash install.sh
 ```
 
 如果你更习惯 shell 环境，也可以在 Git Bash 或 WSL 中执行 `bash install.sh`，并确保 Docker Desktop 已经启动。
